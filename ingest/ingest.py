@@ -118,12 +118,36 @@ def ingest_collection(
         chunks = list(chunker.chunk(dl_doc=doc))
         log.info("  → %d chunks produced", len(chunks))
 
+        # Build a parent-section map for the whole document before batching.
+        # Docling only gives the immediate heading; this tracks the nearest
+        # ancestor heading so sub-sections carry their parent context.
+        parent_section: list = [""]   # mutable cell shared across batches
+        for c in chunks:
+            title = c.meta.headings[-1] if c.meta.headings else ""
+            if title and c.text.strip().startswith("ICD-10"):
+                parent_section[0] = title
+        # Reset for use chunk-by-chunk below
+        parent_section[0] = ""
+
         for batch_start in range(0, len(chunks), UPSERT_BATCH):
             batch = chunks[batch_start : batch_start + UPSERT_BATCH]
 
-            # contextualize() prepends the heading hierarchy to each chunk's text
-            # so the embedding carries section context, not just the bare passage.
-            texts_for_embedding = [chunker.contextualize(chunk=c) for c in batch]
+            enriched: list = []
+            for c in batch:
+                title = c.meta.headings[-1] if c.meta.headings else ""
+                # Detect major section anchor (chunk whose entire text is an ICD-10 line)
+                if title and c.text.strip().startswith("ICD-10"):
+                    parent_section[0] = title
+                # Build enriched text: parent context + section title + body
+                if parent_section[0] and parent_section[0] != title:
+                    enriched.append(
+                        f"{parent_section[0]} > {title}\n{c.text}"
+                        if title else f"{parent_section[0]}\n{c.text}"
+                    )
+                else:
+                    enriched.append(chunker.contextualize(chunk=c))
+
+            texts_for_embedding = enriched
 
             dense_vecs = dense_model.encode(
                 texts_for_embedding,
@@ -149,7 +173,10 @@ def ingest_collection(
                             ),
                         },
                         payload={
-                            "text": chunk.text,
+                            # Store the contextualized text (with heading hierarchy)
+                            # so the LLM receives the same context-rich text
+                            # that was used to generate the embedding.
+                            "text": text,
                             "source_document": file_path.name,
                             "collection": collection_name,
                             "access_roles": access_roles,
