@@ -1,0 +1,24 @@
+# Document parsing & chunking
+docling>=2.5.0
+
+# Vector store
+qdrant-client>=1.9.0
+
+# Embeddings
+sentence-transformers>=3.0.0
+fastembed>=0.3.6
+
+# LLM (used in RAG and SQL RAG modules)
+anthropic>=0.30.0
+
+# Backend
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Reranker
+# cross-encoder models are loaded via sentence-transformers — no extra dep needed
+
+# Utilities
+python-dotenv>=1.0.0

@@ -1,0 +1,25 @@
+# Data & storage (too large / not code)
+data/
+qdrant_storage/
+mediassist_data.zip
+
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+
+# Node (frontend — added later)
+node_modules/
+.next/
