@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import List
 
 # Make config importable whether the script is run from project root or ingest/
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from docling.document_converter import DocumentConverter
 from docling.chunking import HybridChunker
@@ -23,7 +23,7 @@ from fastembed import SparseTextEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client import models as qmodels
 
-from config import (
+from ingest.config import (
     DATA_DIR,
     QDRANT_URL,
     QDRANT_COLLECTION,

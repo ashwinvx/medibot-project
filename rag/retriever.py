@@ -17,15 +17,15 @@ import logging
 from pathlib import Path
 from typing import List
 
-# Allow imports from ingest/config regardless of working directory
-sys.path.insert(0, str(Path(__file__).parent.parent / "ingest"))
+# Ensure project root is in path so ingest/rag are importable as packages
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sentence_transformers import SentenceTransformer
 from fastembed import SparseTextEmbedding
 from qdrant_client import QdrantClient
 from qdrant_client import models as qmodels
 
-from config import (
+from ingest.config import (
     QDRANT_URL,
     QDRANT_COLLECTION,
     DENSE_MODEL_NAME,
