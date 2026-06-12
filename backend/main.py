@@ -96,6 +96,7 @@ class ChatResponse(BaseModel):
     sources: List[SourceDoc]
     retrieval_type: str   # "hybrid_rag" | "sql_rag"
     role: str
+    rbac_blocked: bool = False
 
 
 # ── Auth dependency ──────────────────────────────────────────────────────
@@ -164,27 +165,36 @@ def chat(
     # ── Route: Hybrid RAG ────────────────────────────────────────────────
     log.info("Routing to Hybrid RAG | role=%s", role)
 
+    accessible = [
+        c for c, cfg in COLLECTION_CONFIG.items()
+        if role in cfg["access_roles"]
+    ]
+
     # RBAC filter is applied inside retriever at the Qdrant query level
     candidates = retriever.retrieve(question, role=role, top_k=10)
 
     if not candidates:
-        accessible = [
-            c for c, cfg in COLLECTION_CONFIG.items()
-            if role in cfg["access_roles"]
-        ]
         return ChatResponse(
             answer=(
-                f"As a {role}, you do not have access to documents relevant to this question. "
-                f"I can only answer questions from the "
-                f"{', '.join(accessible)} collections."
+                f"As a {role}, I do not have access to the documents needed to answer this question. "
+                f"I can only answer questions from the {', '.join(accessible)} collections."
             ),
             sources=[],
             retrieval_type="hybrid_rag",
             role=role,
+            rbac_blocked=True,
         )
 
     top_chunks = reranker.rerank(question, candidates, top_k=3)
-    answer = generate_rag_answer(question, top_chunks, role=role)
+    answer = generate_rag_answer(
+        question,
+        top_chunks,
+        role=role,
+        accessible_collections=accessible,
+    )
+
+    # Detect when the LLM produced the RBAC fallback message
+    rbac_blocked = answer.lower().startswith(f"as a {role.lower()},")
 
     sources = [
         SourceDoc(
@@ -197,7 +207,8 @@ def chat(
 
     return ChatResponse(
         answer=answer,
-        sources=sources,
+        sources=sources if not rbac_blocked else [],
         retrieval_type="hybrid_rag",
         role=role,
+        rbac_blocked=rbac_blocked,
     )

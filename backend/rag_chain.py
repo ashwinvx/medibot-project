@@ -17,10 +17,19 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
-def generate_rag_answer(question: str, chunks: List[dict], role: str = "") -> str:
+def generate_rag_answer(
+    question: str,
+    chunks: List[dict],
+    role: str = "",
+    accessible_collections: Optional[List[str]] = None,
+) -> str:
     """
     Build a grounded prompt from the top-3 reranked chunks and call
     Claude to produce a cited answer.
+
+    If the context is insufficient for the user's role, the LLM is
+    instructed to return a clear RBAC-block message starting with
+    "As a <role>," so callers can detect it reliably.
     """
     context_blocks = []
     for i, c in enumerate(chunks, 1):
@@ -29,16 +38,24 @@ def generate_rag_answer(question: str, chunks: List[dict], role: str = "") -> st
         )
     context = "\n\n".join(context_blocks)
 
-    role_line = f"The user's role is: {role}.\n" if role else ""
+    collections_str = (
+        ", ".join(accessible_collections) if accessible_collections else "your assigned"
+    )
+
+    rbac_fallback = (
+        f"As a {role}, I do not have access to the documents needed to answer this question. "
+        f"I can only answer questions from the {collections_str} collections."
+    )
 
     prompt = (
         "You are MediBot, an internal knowledge assistant for MediAssist Health Network.\n"
-        f"{role_line}"
+        f"The user's role is: {role}.\n"
+        f"This user has access to ONLY these document collections: {collections_str}.\n\n"
         "Answer the question using ONLY the context passages below.\n"
-        "Cite sources by referencing [1], [2], [3] where relevant.\n"
-        "If the context does not contain a complete answer, share what is available "
-        "and indicate which document to consult for more detail.\n"
-        "Do NOT say you lack access to documents. Be concise and factual.\n\n"
+        "Cite sources by referencing [1], [2], [3] where relevant.\n\n"
+        "IMPORTANT: If the context passages do not contain sufficient information to answer "
+        "the question, respond with EXACTLY the following sentence and nothing else:\n"
+        f'"{rbac_fallback}"\n\n'
         f"Context:\n{context}\n\n"
         f"Question: {question}\n\n"
         "Answer:"

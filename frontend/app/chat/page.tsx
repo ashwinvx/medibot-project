@@ -12,6 +12,7 @@ interface Message {
   text: string;
   sources?: Source[];
   retrieval_type?: "hybrid_rag" | "sql_rag";
+  rbac_blocked?: boolean;
 }
 
 // ── Role badge colours ────────────────────────────────────────────────────
@@ -81,9 +82,7 @@ function SourceList({ sources }: { sources: Source[] }) {
 // ── Bot message card ──────────────────────────────────────────────────────
 
 function BotMessage({ msg }: { msg: Message }) {
-  const isRbacBlock =
-    msg.text.toLowerCase().includes("do not have access") ||
-    msg.text.toLowerCase().includes("not have access to");
+  const isRbacBlock = msg.rbac_blocked === true;
 
   return (
     <div className="flex gap-3 max-w-3xl">
@@ -185,6 +184,7 @@ export default function ChatPage() {
         text: data.answer,
         sources: data.sources,
         retrieval_type: data.retrieval_type,
+        rbac_blocked: data.rbac_blocked,
       };
       setMessages((prev) => [...prev, botMsg]);
     } catch (err: unknown) {

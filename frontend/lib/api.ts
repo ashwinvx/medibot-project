@@ -11,6 +11,7 @@ export interface ChatResponse {
   sources: Source[];
   retrieval_type: "hybrid_rag" | "sql_rag";
   role: string;
+  rbac_blocked: boolean;
 }
 
 export interface LoginResponse {
